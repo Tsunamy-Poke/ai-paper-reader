@@ -13,7 +13,8 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect } = React;
-const API = 'http://127.0.0.1:8000';
+    // API 地址自适应：本地 file:// 打开走 127.0.0.1:8000；http(s) 部署/穿透后同源
+    const API = location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8000';
 
 function App() {
   const [view, setView] = useState('home');
