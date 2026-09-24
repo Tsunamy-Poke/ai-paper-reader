@@ -1,6 +1,17 @@
 # AI 论文阅读助手 (AI Paper Reader)
 
-拖入一篇论文 PDF，一键生成**摘要 / 大纲 / 术语解释 / 核心结论**，可追问，并沉淀为个人文献库（方案 A：只存文本，PDF 即用即清，千篇约 50–200 MB）。
+**中文** | [English](./README_EN.md)
+
+拖入一篇论文 PDF，一键生成**摘要 / 大纲 / 术语解释 / 核心结论**，可追问，可跨篇搜索，并沉淀为个人文献库（方案 A：只存文本，PDF 即用即清，千篇约 50–200 MB）。
+
+## 功能截图
+
+| | |
+| --- | --- |
+| 首页 — 上传 / 跨篇搜索 / 文献库 | 阅读卡 — 摘要 / 大纲 / 术语 / 结论 |
+| ![首页](docs/screenshot-home.png) | ![阅读卡](docs/w2-reader-page.png) |
+| 导出的 HTML 阅读卡 | |
+| ![导出页](docs/w3-export-page.png) | |
 
 ## 当前进度
 
@@ -48,6 +59,8 @@ LLM_MODEL=deepseek-chat
 | GET | /papers/{id}/reading-card | 生成阅读卡 |
 | POST | /papers/{id}/ask | 基于原文追问 |
 | DELETE | /papers/{id} | 删除论文 |
+| GET | /search?q= | 跨篇全文检索（W3） |
+| GET | /papers/{id}/export | 导出阅读卡 HTML（W3） |
 
 ## 前端界面（W2 完成）
 
@@ -87,4 +100,4 @@ ai-paper-reader/
 
 ## License
 
-MIT（待定）
+MIT
