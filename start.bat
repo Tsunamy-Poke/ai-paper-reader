@@ -1,8 +1,18 @@
 @echo off
+chcp 65001 >nul
 cd /d "D:\AI论文阅读助手\ai-paper-reader\backend"
-start "AI Paper Reader - Backend" ".venv\Scripts\python.exe" -m uvicorn app.main:app --port 8000
+if not exist ".venv\Scripts\python.exe" (
+  echo [ERROR] 虚拟环境不存在，请先运行: cd backend ^&^& python -m venv .venv
+  pause
+  exit /b 1
+)
+start "AI Paper Reader - Backend" "D:\AI论文阅读助手\ai-paper-reader\backend\.venv\Scripts\python.exe" -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 timeout /t 4 >nul
-start "" "D:\AI论文阅读助手\ai-paper-reader\frontend\index.html"
+start "" "http://127.0.0.1:8000/"
 echo.
-echo Backend started. Browser will open the app.
-echo To stop: close the "AI Paper Reader - Backend" window or press Ctrl+C there.
+echo ============================================
+echo  AI 论文阅读助手已启动
+echo  浏览器将自动打开 http://127.0.0.1:8000/
+echo  停止服务: 关闭 "AI Paper Reader - Backend" 窗口
+echo ============================================
+pause
