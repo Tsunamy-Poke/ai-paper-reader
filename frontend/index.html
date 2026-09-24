@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 论文阅读助手</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800">
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect } = React;
+const API = 'http://127.0.0.1:8000';
+
+function App() {
+  const [view, setView] = useState('home');
+  const [papers, setPapers] = useState([]);
+  const [current, setCurrent] = useState(null);
+  const [card, setCard] = useState(null);
+  const [loadingCard, setLoadingCard] = useState(false);
+  const [qas, setQas] = useState([]);
+  const [question, setQuestion] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [search, setSearch] = useState('');
+  const [searchQ, setSearchQ] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [drag, setDrag] = useState(false);
+  const [err, setErr] = useState('');
+  const fileRef = React.createRef();
+
+  function refreshPapers() {
+    fetch(API + '/papers')
+      .then(r => r.json())
+      .then(setPapers)
+      .catch(() => setErr('无法连接后端。请先双击 start.bat 启动服务'));
+  }
+  useEffect(refreshPapers, []);
+
+  async function upload(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf')) { setErr('仅支持 PDF 文件'); return; }
+    setUploading(true); setErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch(API + '/papers/upload', { method: 'POST', body: fd });
+      if (!r.ok) { const j = await r.json(); throw new Error(j.detail || '上传失败'); }
+      const j = await r.json();
+      await refreshPapers();
+      openPaper(j.id, j.title);
+    } catch (e) { setErr('上传失败: ' + e.message + '（请确认已双击 start.bat 启动后端）'); }
+    setUploading(false);
+  }
+
+  async function openPaper(id, title) {
+    setCurrent({ id, title });
+    setView('reader');
+    setCard(null); setQas([]); setQuestion(''); setErr('');
+    setLoadingCard(true);
+    try {
+      const r = await fetch(API + '/papers/' + id + '/reading-card');
+      if (!r.ok) { const j = await r.json(); throw new Error(j.detail || '生成失败'); }
+      setCard(await r.json());
+    } catch (e) { setErr('生成阅读卡失败: ' + e.message); }
+    setLoadingCard(false);
+  }
+
+  async function globalSearch() {
+    const q = searchQ.trim();
+    if (!q || searching) return;
+    setSearching(true); setErr('');
+    try {
+      const r = await fetch(API + '/search?q=' + encodeURIComponent(q));
+      if (!r.ok) { const j = await r.json(); throw new Error(j.detail || '搜索失败'); }
+      setSearchResults(await r.json());
+    } catch (e) { setErr('搜索失败: ' + e.message); setSearchResults(null); }
+    setSearching(false);
+  }
+
+  async function ask() {
+    const q = question.trim();
+    if (!q || asking) return;
+    setAsking(true); setErr('');
+    try {
+      const r = await fetch(API + '/papers/' + current.id + '/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q }),
+      });
+      if (!r.ok) { const j = await r.json(); throw new Error(j.detail || '提问失败'); }
+      const j = await r.json();
+      setQas(prev => [...prev, { question: q, answer: j.answer }]);
+      setQuestion('');
+    } catch (e) { setErr('提问失败: ' + e.message); }
+    setAsking(false);
+  }
+
+  async function removePaper(id) {
+    if (!confirm('删除后不可恢复，确定删除这篇论文吗？')) return;
+    await fetch(API + '/papers/' + id, { method: 'DELETE' }).catch(() => {});
+    refreshPapers();
+  }
+
+  const filtered = papers.filter(p =>
+    !search || (p.title || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (view === 'reader' && current) {
+    return <Reader current={current} card={card} loadingCard={loadingCard}
+      qas={qas} question={question} setQuestion={setQuestion} ask={ask} asking={asking}
+      err={err} onBack={() => { setView('home'); refreshPapers(); }} />;
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto px-6 py-8">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900">AI 论文阅读助手</h1>
+        <p className="text-slate-500 mt-1">拖入一篇 PDF，一键生成摘要、大纲、术语解释与结论，可追问、可跨篇搜索</p>
+      </header>
+
+      {err && <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm">{err}</div>}
+
+      {/* 上传区 */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={e => { e.preventDefault(); setDrag(false); upload(e.dataTransfer.files[0]); }}
+        onClick={() => fileRef.current && fileRef.current.click()}
+        className={"mb-6 border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors " +
+          (drag ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-white hover:border-blue-400")}
+      >
+        <input ref={fileRef} type="file" accept=".pdf" className="hidden"
+          onChange={e => { upload(e.target.files[0]); e.target.value = ''; }} />
+        <div className="text-3xl mb-1">{uploading ? "⏳" : "📄"}</div>
+        <div className="font-medium text-slate-700">{uploading ? "正在解析并入库…" : "拖拽 PDF 到此处，或点击选择文件"}</div>
+        <div className="text-sm text-slate-400 mt-1">解析后自动清理 PDF 原件，本地只保留文本（方案 A）</div>
+      </div>
+
+      {/* 跨篇搜索 */}
+      <div className="mb-8 bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <h2 className="text-lg font-semibold">🔍 跨篇搜索全部文献</h2>
+          <span className="text-xs text-slate-400">按内容检索，可跨所有论文找相关段落</span>
+        </div>
+        <div className="flex gap-2">
+          <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') globalSearch(); }}
+            placeholder="输入关键词，如：深度学习 / transformer / 注意力机制"
+            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <button onClick={globalSearch} disabled={searching || !searchQ.trim()}
+            className="bg-slate-800 disabled:bg-slate-300 text-white rounded-lg px-5 py-2 text-sm font-medium hover:bg-slate-700">
+            {searching ? "…" : "搜索"}
+          </button>
+        </div>
+        {searchResults !== null && (
+          <div className="mt-4">
+            {searchResults.length === 0 ? (
+              <div className="text-sm text-slate-400">没有找到相关段落，换个词试试</div>
+            ) : (
+              <div className="space-y-3">
+                {searchResults.map(r => (
+                  <div key={r.paper_id} className="border border-slate-100 rounded-lg p-3 hover:bg-slate-50 cursor-pointer"
+                    onClick={() => openPaper(r.paper_id, r.title)}>
+                    <div className="font-medium text-blue-700 text-sm">{r.title}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{r.matches.length} 处命中</div>
+                    <div className="space-y-1 mt-2">
+                      {r.matches.map(m => (
+                        <div key={m.chunk_id} className="text-sm text-slate-600 leading-relaxed">
+                          <span className="text-slate-400 text-xs">第 {m.page} 页</span> {m.snippet}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 文献库 */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">📚 我的文献库（{papers.length}）</h2>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="按标题过滤…"
+          className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-400">
+          还没有论文，先上传一篇试试
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(p => (
+            <div key={p.id} className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-shadow group">
+              <div className="font-medium text-slate-800 line-clamp-2">{p.title}</div>
+              <div className="text-xs text-slate-400 mt-2">{p.created_at} · {p.chunk_count} 块</div>
+              <div className="flex justify-between mt-3">
+                <button onClick={() => openPaper(p.id, p.title)}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium">📖 阅读卡 →</button>
+                <button onClick={() => removePaper(p.id)}
+                  className="text-sm text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100">删除</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Reader({ current, card, loadingCard, qas, question, setQuestion, ask, asking, err, onBack }) {
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="flex items-center gap-4 mb-6">
+        <button onClick={onBack} className="text-blue-600 hover:text-blue-800 font-medium">← 返回文献库</button>
+        <h1 className="text-xl font-bold text-slate-900 truncate flex-1">{current.title}</h1>
+        <a href={API + '/papers/' + current.id + '/export'} target="_blank" rel="noreferrer"
+          className="bg-slate-800 text-white text-sm rounded-lg px-4 py-2 font-medium hover:bg-slate-700">⬇ 导出阅读卡</a>
+      </div>
+
+      {err && <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm">{err}</div>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 阅读卡 */}
+        <div className="lg:col-span-2 space-y-4">
+          {loadingCard ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-16 text-center text-slate-400">
+              ⏳ 正在生成阅读卡（首次调用 AI 约需 10-30 秒）…
+            </div>
+          ) : !card ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-16 text-center text-slate-400">暂无内容</div>
+          ) : (
+            <>
+              <Section icon="📋" title="一句话摘要">
+                <p className="text-slate-700 leading-relaxed">{card.summary}</p>
+              </Section>
+              <Section icon="🧭" title="章节大纲">
+                <ol className="space-y-1.5">
+                  {(card.outline || []).map((o, i) => <li key={i} className="text-slate-700">{i + 1}. {o}</li>)}
+                </ol>
+              </Section>
+              <Section icon="📖" title="术语解释">
+                <ul className="space-y-2">
+                  {(card.terms || []).map((t, i) => (
+                    <li key={i} className="text-slate-700">
+                      <span className="font-medium text-slate-900">{t.term}</span>
+                      <span className="text-slate-400"> — </span>{t.explanation}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+              <Section icon="✅" title="核心结论">
+                <ul className="space-y-1.5">
+                  {(card.conclusions || []).map((c, i) => <li key={i} className="text-slate-700 flex gap-2"><span>•</span><span>{c}</span></li>)}
+                </ul>
+              </Section>
+            </>
+          )}
+        </div>
+
+        {/* 追问 */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col" style={{ maxHeight: '70vh' }}>
+          <h3 className="font-semibold text-slate-800 mb-3">💬 追问这篇论文</h3>
+          <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
+            {qas.length === 0 ? (
+              <div className="text-sm text-slate-400">问点什么，比如"作者的核心论据是什么？"</div>
+            ) : qas.map((qa, i) => (
+              <div key={i}>
+                <div className="bg-blue-50 text-blue-800 rounded-lg rounded-br-none px-3 py-2 text-sm mb-2">{qa.question}</div>
+                <div className="bg-slate-50 text-slate-700 rounded-lg rounded-bl-none px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap">{qa.answer}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input value={question} onChange={e => setQuestion(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') ask(); }}
+              placeholder="输入你的问题…"
+              className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <button onClick={ask} disabled={asking || !question.trim()}
+              className="bg-blue-600 disabled:bg-slate-300 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700">
+              {asking ? "…" : "发送"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ icon, title, children }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 className="font-semibold text-slate-800 mb-3">{icon} {title}</h3>
+      {children}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

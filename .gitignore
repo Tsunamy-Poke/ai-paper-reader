@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# 密钥与数据（绝不提交）
+.env
+reader.db
+backend/uploads/
+
+# 系统
+Thumbs.db
+.DS_Store
