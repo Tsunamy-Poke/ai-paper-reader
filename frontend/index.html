@@ -221,8 +221,10 @@ function Reader({ current, card, loadingCard, qas, question, setQuestion, ask, a
       <div className="flex items-center gap-4 mb-6">
         <button onClick={onBack} className="text-blue-600 hover:text-blue-800 font-medium">← 返回文献库</button>
         <h1 className="text-xl font-bold text-slate-900 truncate flex-1">{current.title}</h1>
+        <a href={API + '/papers/' + current.id + '/export?format=pdf'} download
+          className="bg-slate-800 text-white text-sm rounded-lg px-4 py-2 font-medium hover:bg-slate-700">📄 导出 PDF</a>
         <a href={API + '/papers/' + current.id + '/export'} target="_blank" rel="noreferrer"
-          className="bg-slate-800 text-white text-sm rounded-lg px-4 py-2 font-medium hover:bg-slate-700">⬇ 导出阅读卡</a>
+          className="bg-white border border-slate-300 text-slate-600 text-sm rounded-lg px-4 py-2 font-medium hover:bg-slate-50">🌐 HTML</a>
       </div>
 
       {err && <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm">{err}</div>}

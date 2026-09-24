@@ -1,9 +1,11 @@
 """阅读卡生成与追问：检索相关分块后调用 LLM，回答带页码出处。"""
+import io
 import json
 import re
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Body
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from ..db import get_conn
 from ..services import llm, summarizer
@@ -85,9 +87,9 @@ def ask(paper_id: int, body: dict = Body(...)):
     return {"question": question, "answer": answer}
 
 
-@router.get("/export", response_class=HTMLResponse)
-def export_html(paper_id: int):
-    """导出阅读卡为自包含 HTML（可浏览器打印/保存为 PDF）。"""
+@router.get("/export")
+def export_paper(paper_id: int, format: str = "html"):
+    """导出阅读卡：format=html（默认，浏览器打开可打印）| format=pdf（直接下载 PDF 文件）。"""
     conn = get_conn()
     paper = conn.execute("SELECT * FROM papers WHERE id = ?", (paper_id,)).fetchone()
     if not paper:
@@ -114,12 +116,26 @@ def export_html(paper_id: int):
         }
     conn.close()
 
-    terms = card.get("terms") or []
-    outline = card.get("outline") or []
-    conclusions = card.get("conclusions") or []
-    summary = card.get("summary") or "（暂无摘要）"
+    if format.lower() == "pdf":
+        buf = _render_card_pdf(dict(paper), card)
+        filename = quote(f"阅读卡-{paper['title'][:20]}.pdf")
+        return Response(
+            buf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+        )
 
-    html = f"""<!DOCTYPE html>
+    return HTMLResponse(_render_card_html(dict(paper), card))
+
+
+def _render_card_html(paper: dict, card: dict) -> str:
+    """渲染自包含 HTML 阅读卡（可浏览器打印/保存为 PDF）。"""
+    summary = card.get("summary") or "（暂无摘要）"
+    outline = card.get("outline") or []
+    terms = card.get("terms") or []
+    conclusions = card.get("conclusions") or []
+
+    return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -159,4 +175,45 @@ def export_html(paper_id: int):
 <footer>仅供个人阅读辅助，请尊重原论文版权。</footer>
 </body>
 </html>"""
-    return html
+
+
+def _render_card_pdf(paper: dict, card: dict) -> bytes:
+    """用 PyMuPDF Story 渲染多页 A4 PDF（原生支持中文，自动分页）。"""
+    import pymupdf as fitz
+
+    summary = card.get("summary") or "（暂无摘要）"
+    outline = card.get("outline") or []
+    terms = card.get("terms") or []
+    conclusions = card.get("conclusions") or []
+
+    outline_html = "".join(f"<li>{o}</li>" for o in outline)
+    terms_html = "".join(
+        f"<li><b>{t.get('term', '')}</b> — {t.get('explanation', '')}</li>" for t in terms
+    )
+    conclusions_html = "".join(f"<li>{c}</li>" for c in conclusions)
+
+    html = f"""<h1 style="font-size:20px;">{paper["title"]}</h1>
+<p style="font-size:12px;color:#888888;">由 AI 论文阅读助手生成 · {paper["created_at"]}</p>
+<h2 style="font-size:15px;color:#1d4ed8;">一句话摘要</h2>
+<p style="font-size:13px;line-height:1.7;">{summary}</p>
+<h2 style="font-size:15px;color:#1d4ed8;">章节大纲</h2>
+<ol>{outline_html}</ol>
+<h2 style="font-size:15px;color:#1d4ed8;">术语解释</h2>
+<ul>{terms_html}</ul>
+<h2 style="font-size:15px;color:#1d4ed8;">核心结论</h2>
+<ul>{conclusions_html}</ul>
+<p style="font-size:10px;color:#aaaaaa;margin-top:24px;">仅供个人阅读辅助，请尊重原论文版权。</p>"""
+
+    buf = io.BytesIO()
+    writer = fitz.DocumentWriter(buf)
+    rect = fitz.paper_rect("a4")
+    story = fitz.Story(html=html)
+    while True:
+        dev = writer.begin_page(rect)
+        more, _ = story.place(rect)
+        story.draw(dev)
+        writer.end_page()
+        if not more:
+            break
+    writer.close()
+    return buf.getvalue()
