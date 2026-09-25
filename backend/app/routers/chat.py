@@ -13,18 +13,8 @@ from ..services import llm, summarizer
 router = APIRouter(prefix="/papers/{paper_id}", tags=["chat"])
 
 
-@router.get("/reading-card")
-def reading_card(paper_id: int):
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM chunks WHERE paper_id = ? ORDER BY chunk_index", (paper_id,)
-    ).fetchall()
-    if not rows:
-        conn.close()
-        raise HTTPException(404, "论文不存在或无可生成内容")
-    card = summarizer.generate_reading_card([dict(r) for r in rows])
-
-    # 阅读卡要素沉淀到 highlights（含 summary/outline，供导出复用）
+def _save_highlights(conn, paper_id: int, card: dict):
+    """把阅读卡四要素沉淀到 highlights，供后续读取复用（省 AI 额度）。"""
     if card.get("summary"):
         conn.execute(
             "INSERT INTO highlights (paper_id, type, content) VALUES (?, 'summary', ?)",
@@ -45,8 +35,39 @@ def reading_card(paper_id: int):
             "INSERT INTO highlights (paper_id, type, content) VALUES (?, 'conclusion', ?)",
             (paper_id, c),
         )
+
+
+def _get_or_generate_card(conn, paper_id: int) -> tuple[dict, bool]:
+    """返回 (阅读卡, 是否重新调用了 AI)。缓存四要素齐全则直接复用，不消耗额度。"""
+    hl = conn.execute("SELECT * FROM highlights WHERE paper_id = ?", (paper_id,)).fetchall()
+    types = {h["type"] for h in hl}
+    if hl and {"summary", "outline", "term", "conclusion"} <= types:
+        card = {
+            "summary": next((h["content"] for h in hl if h["type"] == "summary"), ""),
+            "outline": [h["content"] for h in hl if h["type"] == "outline"],
+            "terms": [json.loads(h["content"]) for h in hl if h["type"] == "term"],
+            "conclusions": [h["content"] for h in hl if h["type"] == "conclusion"],
+        }
+        return card, False
+
+    rows = conn.execute(
+        "SELECT * FROM chunks WHERE paper_id = ? ORDER BY chunk_index", (paper_id,)
+    ).fetchall()
+    if not rows:
+        return {}, False
+    card = summarizer.generate_reading_card([dict(r) for r in rows])
+    _save_highlights(conn, paper_id, card)
     conn.commit()
+    return card, True
+
+
+@router.get("/reading-card")
+def reading_card(paper_id: int):
+    conn = get_conn()
+    card, _ = _get_or_generate_card(conn, paper_id)
     conn.close()
+    if not card:
+        raise HTTPException(404, "论文不存在或无可生成内容")
     return card
 
 
@@ -96,24 +117,8 @@ def export_paper(paper_id: int, format: str = "html"):
         conn.close()
         raise HTTPException(404, "论文不存在")
 
-    # 优先用已沉淀的 highlights；缓存不完整（缺 summary/outline）则重新生成
-    hl = conn.execute("SELECT * FROM highlights WHERE paper_id = ?", (paper_id,)).fetchall()
-    types = {h["type"] for h in hl}
-    if not hl or not ({"summary", "outline"} & types):
-        rows = conn.execute(
-            "SELECT * FROM chunks WHERE paper_id = ? ORDER BY chunk_index", (paper_id,)
-        ).fetchall()
-        if rows:
-            card = summarizer.generate_reading_card([dict(r) for r in rows])
-        else:
-            card = {}
-    else:
-        card = {
-            "summary": next((h["content"] for h in hl if h["type"] == "summary"), ""),
-            "outline": [h["content"] for h in hl if h["type"] == "outline"],
-            "terms": [json.loads(h["content"]) for h in hl if h["type"] == "term"],
-            "conclusions": [h["content"] for h in hl if h["type"] == "conclusion"],
-        }
+    # 与阅读卡共用缓存：四要素齐全则直接复用，不重复调用 AI
+    card, _ = _get_or_generate_card(conn, paper_id)
     conn.close()
 
     if format.lower() == "pdf":
