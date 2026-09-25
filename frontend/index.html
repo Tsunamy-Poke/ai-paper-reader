@@ -5,8 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI 论文阅读助手</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body {
+    background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 45%, #f8fafc 100%);
+    min-height: 100vh;
+  }
+  ::selection { background: #bfdbfe; }
+  /* 上传区虚线动效 */
+  @keyframes dashmove { to { stroke-dashoffset: -24; } }
+  .dash-line { animation: dashmove 1.2s linear infinite; }
+  /* 卡片悬浮 */
+  .card-hover { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px -14px rgba(37, 99, 235, .28);
+    border-color: #bfdbfe;
+  }
+  /* 滚动条 */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
 </head>
-<body class="bg-slate-100 text-slate-800">
+<body class="text-slate-800">
 <div id="root"></div>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -17,9 +38,9 @@ const { useState, useEffect } = React;
   const API = location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8000';
 
 const MODES = [
-  ['title', '标题'],
-  ['content', '内容'],
-  ['rank', '排序'],
+  ['title', '标题', '🏷️'],
+  ['content', '内容', '🔍'],
+  ['rank', '排序', '📊'],
 ];
 
 function App() {
@@ -155,13 +176,19 @@ function App() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">AI 论文阅读助手</h1>
-        <p className="text-slate-500 mt-1">拖入 PDF / Word / TXT，一键生成摘要、大纲、术语解释与结论，可追问、可跨篇搜索</p>
+    <div className="max-w-5xl mx-auto px-6 py-10">
+      {/* 头部 */}
+      <header className="mb-8 text-center sm:text-left">
+        <div className="flex items-center justify-center sm:justify-start gap-3 mb-2">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-500 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/25">
+            📚
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">AI 论文阅读助手</h1>
+        </div>
+        <p className="text-slate-500 mt-2">拖入 PDF / Word / TXT，一键生成摘要、大纲、术语解释与结论，可追问、可跨篇搜索</p>
       </header>
 
-      {err && <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm">{err}</div>}
+      {err && <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm">{err}</div>}
 
       {/* 上传区 */}
       <div
@@ -169,41 +196,52 @@ function App() {
         onDragLeave={() => setDrag(false)}
         onDrop={e => { e.preventDefault(); setDrag(false); upload(e.dataTransfer.files[0]); }}
         onClick={() => fileRef.current && fileRef.current.click()}
-        className={"mb-6 border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors " +
-          (drag ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-white hover:border-blue-400")}
+        className={"card-hover mb-6 border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer bg-white/70 backdrop-blur-sm " +
+          (drag ? "border-blue-500 bg-blue-50 scale-[1.01]" : "border-slate-300 hover:border-blue-400")}
       >
         <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" className="hidden"
           onChange={e => { upload(e.target.files[0]); e.target.value = ''; }} />
-        <div className="text-3xl mb-1">{uploading ? "⏳" : "📄"}</div>
-        <div className="font-medium text-slate-700">{uploading ? "正在解析并入库…" : "拖拽 PDF / Word / TXT 到此处，或点击选择文件"}</div>
-        <div className="text-sm text-slate-400 mt-1">解析后自动清理文档原件，本地只保留文本（方案 A）</div>
+        <div className={"mx-auto w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mb-3 transition-colors " +
+          (drag ? "bg-blue-500 text-white" : "bg-blue-50 text-blue-600")}>
+          {uploading ? "⏳" : "📄"}
+        </div>
+        <div className="font-semibold text-slate-700">{uploading ? "正在解析并入库…" : "拖拽 PDF / Word / TXT 到此处，或点击选择文件"}</div>
+        <div className="text-sm text-slate-400 mt-1.5">解析后自动清理文档原件，本地只保留文本（方案 A）</div>
       </div>
 
       {/* 文献库 */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-xl font-semibold">📚 我的文献库（{papers.length}）</h2>
+        <h2 className="text-xl font-semibold text-slate-900">📚 我的文献库
+          <span className="ml-2 text-sm font-normal text-slate-400 bg-slate-200/70 rounded-full px-2.5 py-0.5 align-middle">{papers.length}</span>
+        </h2>
         <div className="flex items-center gap-2">
-          <div className="text-xs text-slate-400">搜索方式</div>
-          <div className="flex bg-slate-200 rounded-lg p-0.5 text-sm">
-            {MODES.map(([m, label]) => (
+          <div className="flex bg-white/80 border border-slate-200 rounded-xl p-1 text-sm shadow-sm">
+            {MODES.map(([m, label, icon]) => (
               <button key={m} onClick={() => switchMode(m)}
-                className={"px-3 py-1 rounded-md transition-colors " +
-                  (searchMode === m ? "bg-white shadow text-slate-900 font-medium" : "text-slate-500 hover:text-slate-700")}>
-                {label}
+                className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all " +
+                  (searchMode === m
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md shadow-blue-500/25 font-medium"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100")}>
+                <span className="text-xs">{icon}</span>{label}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-5">
-        <input value={searchBox} onChange={e => setSearchBox(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') doSearch(); }}
-          placeholder={placeholders[searchMode]}
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <div className="relative flex gap-2 mb-6">
+        <div className="relative flex-1">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
+            {searchMode === 'title' ? '🏷️' : searchMode === 'content' ? '🔍' : '📊'}
+          </span>
+          <input value={searchBox} onChange={e => setSearchBox(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') doSearch(); }}
+            placeholder={placeholders[searchMode]}
+            className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 shadow-sm" />
+        </div>
         {searchMode !== 'title' && (
           <button onClick={doSearch} disabled={searching || ranking || !searchBox.trim()}
-            className="bg-blue-600 disabled:bg-slate-300 text-white rounded-lg px-5 py-2 text-sm font-medium hover:bg-blue-700">
+            className="bg-gradient-to-r from-blue-600 to-blue-500 disabled:from-slate-300 disabled:to-slate-300 text-white rounded-xl px-6 py-2.5 text-sm font-medium shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/30 transition-shadow">
             {(searching || ranking) ? "…" : "搜索"}
           </button>
         )}
@@ -211,21 +249,22 @@ function App() {
 
       {/* 内容搜索（跨篇搜段落）结果 */}
       {searchMode === 'content' && contentResults !== null && (
-        <div className="mb-6 bg-white rounded-xl border border-slate-200 p-5">
-          <h3 className="font-semibold text-slate-800 mb-3">🔍 全文检索「{searchBox}」</h3>
+        <div className="mb-6 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <h3 className="font-semibold text-slate-800 mb-4">🔍 全文检索「{searchBox}」</h3>
           {contentResults.length === 0 ? (
             <div className="text-sm text-slate-400">没有找到相关段落，换个词试试</div>
           ) : (
             <div className="space-y-3">
               {contentResults.map(r => (
-                <div key={r.paper_id} className="border border-slate-100 rounded-lg p-3 hover:bg-slate-50 cursor-pointer"
-                  onClick={() => openPaper(r.paper_id, r.title)}>
-                  <div className="font-medium text-blue-700 text-sm">{r.title}</div>
-                  <div className="text-xs text-slate-400 mt-0.5">相关度 {r.score} · {r.matches.length} 处命中</div>
-                  <div className="space-y-1 mt-2">
+                <div key={r.paper_id} className="card-hover border border-slate-100 rounded-xl p-4 hover:bg-slate-50 cursor-pointer">
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-blue-700 text-sm">{r.title}</div>
+                    <div className="text-xs text-slate-400">相关度 <span className="font-medium text-blue-600">{r.score}</span> · {r.matches.length} 处命中</div>
+                  </div>
+                  <div className="space-y-1.5 mt-2.5">
                     {r.matches.map(m => (
-                      <div key={m.chunk_id} className="text-sm text-slate-600 leading-relaxed">
-                        <span className="text-slate-400 text-xs">第 {m.page} 页</span> {m.snippet}
+                      <div key={m.chunk_id} className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-lg px-3 py-2">
+                        <span className="text-slate-400 text-xs mr-2">第 {m.page} 页</span>{m.snippet}
                       </div>
                     ))}
                   </div>
@@ -238,23 +277,27 @@ function App() {
 
       {/* 排序（全库相关度排名）结果 */}
       {searchMode === 'rank' && rankResults !== null && (
-        <div className="mb-6 bg-white rounded-xl border border-slate-200 p-5">
-          <h3 className="font-semibold text-slate-800 mb-3">🎯 全库按「{searchBox}」相关度排序</h3>
+        <div className="mb-6 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <h3 className="font-semibold text-slate-800 mb-4">📊 全库按「{searchBox}」相关度排序</h3>
           {rankResults.length === 0 ? (
             <div className="text-sm text-slate-400">文献库为空，先上传几篇论文吧</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {rankResults.map((r, i) => (
                 <div key={r.paper_id}
-                  className={"flex items-center gap-3 border rounded-lg px-4 py-2.5 cursor-pointer " +
-                    (r.hits > 0 ? "border-slate-100 hover:bg-slate-50" : "border-slate-50 opacity-60")}
+                  className={"card-hover flex items-center gap-3 rounded-xl px-4 py-2.5 cursor-pointer border " +
+                    (r.hits > 0 ? "border-slate-100 hover:bg-slate-50" : "border-transparent opacity-60")}
                   onClick={() => openPaper(r.paper_id, r.title)}>
-                  <div className="text-slate-400 text-sm w-5">{i + 1}</div>
+                  <div className={"w-6 h-6 rounded-full text-xs flex items-center justify-center shrink-0 " +
+                    (i < 3 && r.hits > 0 ? "bg-gradient-to-br from-amber-400 to-orange-400 text-white font-bold" :
+                     r.hits > 0 ? "bg-blue-50 text-blue-600 font-semibold" : "bg-slate-100 text-slate-400")}>
+                    {i + 1}
+                  </div>
                   <div className={"text-sm flex-1 line-clamp-1 " + (r.hits > 0 ? "font-medium text-slate-800" : "text-slate-400")}>{r.title}</div>
                   <div className="text-xs text-slate-400 whitespace-nowrap">
                     {r.hits > 0 ? `${r.hit_chunks}/${r.total_chunks} 块命中` : '未命中'}
                   </div>
-                  <div className={"text-xs font-medium whitespace-nowrap " + (r.hits > 0 ? "text-blue-600" : "text-slate-300")}>相关度 {r.score}</div>
+                  <div className={"text-xs font-medium whitespace-nowrap w-16 text-right " + (r.hits > 0 ? "text-blue-600" : "text-slate-300")}>相关度 {r.score}</div>
                 </div>
               ))}
             </div>
@@ -265,20 +308,26 @@ function App() {
       {/* 文献库卡片（标题过滤模式即时筛；内容/排序模式有结果时隐藏，避免重复） */}
       {!hasResult && (
         filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-400">
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 shadow-sm">
+            <div className="text-4xl mb-3">{papers.length === 0 ? '📭' : '🔍'}</div>
             {papers.length === 0 ? '还没有论文，先上传一篇试试' : '没有标题匹配的论文，试试"内容"或"排序"方式'}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(p => (
-              <div key={p.id} className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-shadow group">
-                <div className="font-medium text-slate-800 line-clamp-2">{p.title}</div>
-                <div className="text-xs text-slate-400 mt-2">{p.created_at} · {p.chunk_count} 块</div>
-                <div className="flex justify-between mt-3">
-                  <button onClick={() => openPaper(p.id, p.title)}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium">📖 阅读卡 →</button>
+              <div key={p.id} className="card-hover bg-white rounded-2xl border border-slate-200 p-5 shadow-sm group">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="text-xs font-medium text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">📄 {p.chunk_count} 块</div>
                   <button onClick={() => removePaper(p.id)}
-                    className="text-sm text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100">删除</button>
+                    className="text-xs text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">删除</button>
+                </div>
+                <div className="font-semibold text-slate-800 leading-snug mt-1 line-clamp-2 min-h-[2.5em]">{p.title}</div>
+                <div className="text-xs text-slate-400 mt-2">{p.created_at}</div>
+                <div className="mt-4">
+                  <button onClick={() => openPaper(p.id, p.title)}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white text-sm rounded-lg py-2 font-medium shadow-sm shadow-blue-500/20 transition-all hover:shadow-md">
+                    📖 阅读卡 →
+                  </button>
                 </div>
               </div>
             ))}
@@ -291,50 +340,52 @@ function App() {
 
 function Reader({ current, card, loadingCard, qas, question, setQuestion, ask, asking, err, onBack }) {
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="max-w-6xl mx-auto px-6 py-10">
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
         <button onClick={onBack} className="text-blue-600 hover:text-blue-800 font-medium">← 返回文献库</button>
         <h1 className="text-xl font-bold text-slate-900 truncate flex-1">{current.title}</h1>
         <a href={API + '/papers/' + current.id + '/export?format=pdf'} download
-          className="bg-slate-800 text-white text-sm rounded-lg px-4 py-2 font-medium hover:bg-slate-700">📄 导出 PDF</a>
+          className="bg-gradient-to-r from-slate-800 to-slate-700 text-white text-sm rounded-lg px-4 py-2 font-medium shadow-sm hover:shadow-md transition-shadow">📄 导出 PDF</a>
         <a href={API + '/papers/' + current.id + '/export'} target="_blank" rel="noreferrer"
-          className="bg-white border border-slate-300 text-slate-600 text-sm rounded-lg px-4 py-2 font-medium hover:bg-slate-50">🌐 HTML</a>
+          className="bg-white border border-slate-200 text-slate-600 text-sm rounded-lg px-4 py-2 font-medium hover:bg-slate-50 hover:border-slate-300 transition-colors">🌐 HTML</a>
       </div>
 
-      {err && <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm">{err}</div>}
+      {err && <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm">{err}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 阅读卡 */}
         <div className="lg:col-span-2 space-y-4">
           {loadingCard ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-16 text-center text-slate-400">
-              ⏳ 正在生成阅读卡（首次调用 AI 约需 10-30 秒）…
+            <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center text-slate-400 shadow-sm">
+              <div className="text-4xl mb-3 animate-pulse">⏳</div>
+              <div className="text-sm">正在生成阅读卡（首次调用 AI 约需 10-30 秒）…</div>
             </div>
           ) : !card ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-16 text-center text-slate-400">暂无内容</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center text-slate-400 shadow-sm">暂无内容</div>
           ) : (
             <>
-              <Section icon="📋" title="一句话摘要">
+              <Section icon="📋" title="一句话摘要" tint="bg-blue-50" bar="from-blue-500 to-blue-400">
                 <p className="text-slate-700 leading-relaxed">{card.summary}</p>
               </Section>
-              <Section icon="🧭" title="章节大纲">
+              <Section icon="🧭" title="章节大纲" tint="bg-emerald-50" bar="from-emerald-500 to-teal-400">
                 <ol className="space-y-1.5">
-                  {(card.outline || []).map((o, i) => <li key={i} className="text-slate-700">{i + 1}. {o}</li>)}
+                  {(card.outline || []).map((o, i) => <li key={i} className="text-slate-700 flex gap-2"><span className="text-emerald-500 font-semibold shrink-0">{i + 1}.</span><span>{o}</span></li>)}
                 </ol>
               </Section>
-              <Section icon="📖" title="术语解释">
+              <Section icon="📖" title="术语解释" tint="bg-amber-50" bar="from-amber-500 to-orange-400">
                 <ul className="space-y-2">
                   {(card.terms || []).map((t, i) => (
-                    <li key={i} className="text-slate-700">
-                      <span className="font-medium text-slate-900">{t.term}</span>
-                      <span className="text-slate-400"> — </span>{t.explanation}
+                    <li key={i} className="text-slate-700 flex gap-2 items-start">
+                      <span className="font-medium text-slate-900 bg-amber-100 text-amber-800 rounded-md px-2 py-0.5 text-sm shrink-0 whitespace-nowrap">{t.term}</span>
+                      <span className="text-slate-400">—</span>
+                      <span>{t.explanation}</span>
                     </li>
                   ))}
                 </ul>
               </Section>
-              <Section icon="✅" title="核心结论">
+              <Section icon="✅" title="核心结论" tint="bg-rose-50" bar="from-rose-500 to-pink-400">
                 <ul className="space-y-1.5">
-                  {(card.conclusions || []).map((c, i) => <li key={i} className="text-slate-700 flex gap-2"><span>•</span><span>{c}</span></li>)}
+                  {(card.conclusions || []).map((c, i) => <li key={i} className="text-slate-700 flex gap-2"><span className="text-rose-400 shrink-0">•</span><span>{c}</span></li>)}
                 </ul>
               </Section>
             </>
@@ -342,15 +393,15 @@ function Reader({ current, card, loadingCard, qas, question, setQuestion, ask, a
         </div>
 
         {/* 追问 */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col" style={{ maxHeight: '70vh' }}>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col shadow-sm" style={{ maxHeight: '70vh' }}>
           <h3 className="font-semibold text-slate-800 mb-3">💬 追问这篇论文</h3>
           <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
             {qas.length === 0 ? (
-              <div className="text-sm text-slate-400">问点什么，比如"作者的核心论据是什么？"</div>
+              <div className="text-sm text-slate-400 bg-slate-50 rounded-xl p-4">问点什么，比如"作者的核心论据是什么？"</div>
             ) : qas.map((qa, i) => (
               <div key={i}>
-                <div className="bg-blue-50 text-blue-800 rounded-lg rounded-br-none px-3 py-2 text-sm mb-2">{qa.question}</div>
-                <div className="bg-slate-50 text-slate-700 rounded-lg rounded-bl-none px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap">{qa.answer}</div>
+                <div className="bg-blue-50 text-blue-800 rounded-xl rounded-br-none px-3 py-2 text-sm mb-2">{qa.question}</div>
+                <div className="bg-slate-50 text-slate-700 rounded-xl rounded-bl-none px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap">{qa.answer}</div>
               </div>
             ))}
           </div>
@@ -358,9 +409,9 @@ function Reader({ current, card, loadingCard, qas, question, setQuestion, ask, a
             <input value={question} onChange={e => setQuestion(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') ask(); }}
               placeholder="输入你的问题…"
-              className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
             <button onClick={ask} disabled={asking || !question.trim()}
-              className="bg-blue-600 disabled:bg-slate-300 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700">
+              className="bg-gradient-to-r from-blue-600 to-blue-500 disabled:from-slate-300 disabled:to-slate-300 text-white rounded-xl px-4 py-2 text-sm font-medium shadow-sm shadow-blue-500/20 hover:shadow-md transition-shadow">
               {asking ? "…" : "发送"}
             </button>
           </div>
@@ -370,11 +421,14 @@ function Reader({ current, card, loadingCard, qas, question, setQuestion, ask, a
   );
 }
 
-function Section({ icon, title, children }) {
+function Section({ icon, title, children, tint = 'bg-blue-50', bar = 'from-blue-500 to-blue-400' }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <h3 className="font-semibold text-slate-800 mb-3">{icon} {title}</h3>
-      {children}
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm overflow-hidden relative">
+      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${bar}`}></div>
+      <h3 className={`font-semibold text-slate-800 mb-3 inline-flex items-center gap-2 ${tint} rounded-lg px-3 py-1.5`}>
+        <span>{icon}</span>{title}
+      </h3>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }
