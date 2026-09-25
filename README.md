@@ -17,8 +17,9 @@
 
 - ✅ **W1（完成）**：核心链路跑通——PDF 解析 → 分块 → 阅读卡生成
 - ✅ **W2（完成）**：前端界面（上传/文献库/阅读卡/追问）+ 真实 AI 调用
-- ✅ **W3（完成）**：跨篇搜索 + 阅读卡导出（HTML）
+- ✅ **W3（完成）**：跨篇搜索（按相关度排序）+ 阅读卡导出（HTML/PDF）
 - ✅ **W4（完成）**：已发布至 GitHub（Public 仓库）
+- ✅ **v0.3（完成）**：Word/TXT 上传 + 文献库按主题相关度排序
 
 ## 快速开始
 
@@ -59,7 +60,8 @@ LLM_MODEL=deepseek-chat
 | GET | /papers/{id}/reading-card | 生成阅读卡 |
 | POST | /papers/{id}/ask | 基于原文追问 |
 | DELETE | /papers/{id} | 删除论文 |
-| GET | /search?q= | 跨篇全文检索（W3） |
+| GET | /search?q= | 跨篇全文检索（按相关度排序，含分数） |
+| GET | /search/rank?topic= | 按主题给全库论文相关度排序（v0.3） |
 | GET | /papers/{id}/export | 导出阅读卡 HTML（W3） |
 
 ## 前端界面（W2 完成）
@@ -98,7 +100,7 @@ ai-paper-reader/
 
 ## 路线图
 
-- v2.0 候选：图表/公式解读、批量导入、浏览器插件、多模型切换、文献相关度排序
+- v2.0 候选：图表/公式解读、批量导入、浏览器插件、多模型切换
 
 ## License
 

@@ -10,7 +10,7 @@ An open-source, local-first reading assistant for academic papers and long docum
 
 - 📄 **One-click reading card** — upload a paper PDF / Word / TXT, get summary, chapter outline, term glossary and key conclusions in seconds
 - 💬 **Follow-up Q&A** — ask anything about the paper; answers are grounded in the original text chunks
-- 🔍 **Cross-paper search** — full-text search across your entire library, with page numbers and highlighted snippets
+- 🔍 **Cross-paper search** — full-text search across your entire library, with page numbers, highlighted snippets and relevance scores
 - ⬇️ **Export** — download any reading card as a clean, printable HTML page
 - 🪶 **Local-first storage (Plan A)** — only extracted text is kept; PDFs are deleted right after parsing (≈50–200 MB per 1,000 papers)
 - 🧩 **Zero-build frontend** — React + Tailwind via CDN, no Node.js or bundler required
@@ -66,7 +66,8 @@ Without a key, the app automatically runs in mock mode so the whole pipeline wor
 | GET | `/papers/{id}/reading-card` | Generate reading card |
 | POST | `/papers/{id}/ask` | Ask follow-up questions against the paper |
 | DELETE | `/papers/{id}` | Delete paper |
-| GET | `/search?q=` | Full-text search across papers |
+| GET | `/search?q=` | Full-text search across papers (relevance-ranked with scores) |
+| GET | `/search/rank?topic=` | Rank your whole library by topic relevance |
 | GET | `/papers/{id}/export` | Export reading card as HTML |
 
 ## Project Structure
