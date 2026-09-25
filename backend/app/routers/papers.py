@@ -13,17 +13,24 @@ router = APIRouter(prefix="/papers", tags=["papers"])
 
 @router.post("/upload")
 async def upload_pdf(file: UploadFile = File(...), source_note: str = Form("")):
-    """上传 PDF → 抽取文本 → 入库（仅文本）→ 清理 PDF 本体（方案 A）。"""
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(400, "仅支持 PDF 文件")
+    """上传 PDF / Word(docx) / TXT → 抽取文本 → 入库（仅文本）→ 清理原件（方案 A）。"""
+    name = file.filename.lower()
+    ext = Path(name).suffix
+    if ext not in (".pdf", ".docx", ".txt"):
+        raise HTTPException(400, "仅支持 PDF / Word(.docx) / TXT 文件")
     Path(config.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
-    tmp = Path(config.UPLOAD_DIR) / f"{uuid.uuid4().hex}.pdf"
+    tmp = Path(config.UPLOAD_DIR) / f"{uuid.uuid4().hex}{ext}"
     try:
         with open(tmp, "wb") as f:
             f.write(await file.read())
-        parsed = pdf_parser.extract_text(str(tmp))
+        if ext == ".pdf":
+            parsed = pdf_parser.extract_text(str(tmp))
+        elif ext == ".docx":
+            parsed = pdf_parser.extract_docx(str(tmp))
+        else:
+            parsed = pdf_parser.extract_txt(str(tmp))
         if not parsed["raw_text"].strip():
-            raise HTTPException(400, "无法从 PDF 提取文本（可能是扫描件/图片型 PDF，暂不支持）")
+            raise HTTPException(400, "无法从文档提取文本（扫描件/图片型文档暂不支持）")
         title = pdf_parser.guess_title(parsed["pages"])
         chunks = chunker.split_pages_into_chunks(parsed["pages"])
 

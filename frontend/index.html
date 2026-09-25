@@ -13,8 +13,8 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect } = React;
-    // API 地址自适应：本地 file:// 打开走 127.0.0.1:8000；http(s) 部署/穿透后同源
-    const API = location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8000';
+  // API 地址自适应：本地 file:// 打开走 127.0.0.1:8000；http(s) 部署/穿透后同源
+  const API = location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8000';
 
 function App() {
   const [view, setView] = useState('home');
@@ -44,7 +44,7 @@ function App() {
 
   async function upload(file) {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.pdf')) { setErr('仅支持 PDF 文件'); return; }
+    if (!/\.(pdf|docx|txt)$/i.test(file.name)) { setErr('仅支持 PDF / Word(.docx) / TXT 文件'); return; }
     setUploading(true); setErr('');
     try {
       const fd = new FormData();
@@ -121,7 +121,7 @@ function App() {
     <div className="max-w-5xl mx-auto px-6 py-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">AI 论文阅读助手</h1>
-        <p className="text-slate-500 mt-1">拖入一篇 PDF，一键生成摘要、大纲、术语解释与结论，可追问、可跨篇搜索</p>
+        <p className="text-slate-500 mt-1">拖入 PDF / Word / TXT，一键生成摘要、大纲、术语解释与结论，可追问、可跨篇搜索</p>
       </header>
 
       {err && <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm">{err}</div>}
@@ -135,11 +135,11 @@ function App() {
         className={"mb-6 border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors " +
           (drag ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-white hover:border-blue-400")}
       >
-        <input ref={fileRef} type="file" accept=".pdf" className="hidden"
+        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" className="hidden"
           onChange={e => { upload(e.target.files[0]); e.target.value = ''; }} />
         <div className="text-3xl mb-1">{uploading ? "⏳" : "📄"}</div>
-        <div className="font-medium text-slate-700">{uploading ? "正在解析并入库…" : "拖拽 PDF 到此处，或点击选择文件"}</div>
-        <div className="text-sm text-slate-400 mt-1">解析后自动清理 PDF 原件，本地只保留文本（方案 A）</div>
+        <div className="font-medium text-slate-700">{uploading ? "正在解析并入库…" : "拖拽 PDF / Word / TXT 到此处，或点击选择文件"}</div>
+        <div className="text-sm text-slate-400 mt-1">解析后自动清理文档原件，本地只保留文本（方案 A）</div>
       </div>
 
       {/* 跨篇搜索 */}

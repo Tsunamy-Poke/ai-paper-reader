@@ -1,6 +1,6 @@
 # AI Paper Reader
 
-> Drag in a PDF, get an AI-generated **summary / outline / glossary / key conclusions** in one click. Ask follow-up questions against the original text, search across your whole library, and export a clean reading card.
+> Drag in a **PDF / Word(.docx) / TXT** file, get an AI-generated **summary / outline / glossary / key conclusions** in one click. Ask follow-up questions against the original text, search across your whole library, and export a clean reading card.
 
 **English** | [中文](./README.md)
 
@@ -8,7 +8,7 @@ An open-source, local-first reading assistant for academic papers and long docum
 
 ## Features
 
-- 📄 **One-click reading card** — upload a paper PDF, get summary, chapter outline, term glossary and key conclusions in seconds
+- 📄 **One-click reading card** — upload a paper PDF / Word / TXT, get summary, chapter outline, term glossary and key conclusions in seconds
 - 💬 **Follow-up Q&A** — ask anything about the paper; answers are grounded in the original text chunks
 - 🔍 **Cross-paper search** — full-text search across your entire library, with page numbers and highlighted snippets
 - ⬇️ **Export** — download any reading card as a clean, printable HTML page
@@ -60,7 +60,7 @@ Without a key, the app automatically runs in mock mode so the whole pipeline wor
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/health` | Health check |
-| POST | `/papers/upload` | Upload PDF (original file is deleted after parsing) |
+| POST | `/papers/upload` | Upload PDF / Word(.docx) / TXT (original file is deleted after parsing) |
 | GET | `/papers` | List library |
 | GET | `/papers/{id}` | Paper detail |
 | GET | `/papers/{id}/reading-card` | Generate reading card |

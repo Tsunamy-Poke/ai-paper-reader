@@ -2,7 +2,7 @@
 
 **中文** | [English](./README_EN.md)
 
-拖入一篇论文 PDF，一键生成**摘要 / 大纲 / 术语解释 / 核心结论**，可追问，可跨篇搜索，并沉淀为个人文献库（方案 A：只存文本，PDF 即用即清，千篇约 50–200 MB）。
+拖入论文 **PDF / Word(.docx) / TXT**，一键生成**摘要 / 大纲 / 术语解释 / 核心结论**，可追问，可跨篇搜索，并沉淀为个人文献库（方案 A：只存文本，原件即用即清，千篇约 50–200 MB）。
 
 ## 功能截图
 
@@ -53,7 +53,7 @@ LLM_MODEL=deepseek-chat
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | /health | 健康检查 |
-| POST | /papers/upload | 上传 PDF（解析后自动清理 PDF 本体） |
+| POST | /papers/upload | 上传 PDF / Word(.docx) / TXT（解析后自动清理原件） |
 | GET | /papers | 文献库列表 |
 | GET | /papers/{id} | 论文详情 |
 | GET | /papers/{id}/reading-card | 生成阅读卡 |
@@ -74,7 +74,7 @@ cd backend
 .venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
 
 # 然后双击 frontend/index.html，浏览器里即可：
-# 上传 PDF → 看阅读卡 → 追问
+# 上传 PDF / Word / TXT → 看阅读卡 → 追问
 ```
 
 ## 目录结构
