@@ -19,7 +19,7 @@
 - ✅ **W2（完成）**：前端界面（上传/文献库/阅读卡/追问）+ 真实 AI 调用
 - ✅ **W3（完成）**：跨篇搜索（按相关度排序）+ 阅读卡导出（HTML/PDF）
 - ✅ **W4（完成）**：已发布至 GitHub（Public 仓库）
-- ✅ **v0.3（完成）**：Word/TXT 上传 + 文献库按主题相关度排序
+- ✅ **v0.3（完成）**：Word/TXT 上传 + 相关度排序（搜索/排序合一搜索框，三种方式可选）
 
 ## 快速开始
 
@@ -61,7 +61,7 @@ LLM_MODEL=deepseek-chat
 | POST | /papers/{id}/ask | 基于原文追问 |
 | DELETE | /papers/{id} | 删除论文 |
 | GET | /search?q= | 跨篇全文检索（按相关度排序，含分数） |
-| GET | /search/rank?topic= | 按主题给全库论文相关度排序（v0.3） |
+| GET | /search/rank?topic=&include_zero= | 按主题给全库相关度排序；include_zero=1 含未命中论文（v0.3） |
 | GET | /papers/{id}/export | 导出阅读卡 HTML（W3） |
 
 ## 前端界面（W2 完成）

@@ -67,7 +67,7 @@ Without a key, the app automatically runs in mock mode so the whole pipeline wor
 | POST | `/papers/{id}/ask` | Ask follow-up questions against the paper |
 | DELETE | `/papers/{id}` | Delete paper |
 | GET | `/search?q=` | Full-text search across papers (relevance-ranked with scores) |
-| GET | `/search/rank?topic=` | Rank your whole library by topic relevance |
+| GET | `/search/rank?topic=&include_zero=` | Rank your whole library by topic; `include_zero=1` includes non-matching papers |
 | GET | `/papers/{id}/export` | Export reading card as HTML |
 
 ## Project Structure

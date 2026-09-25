@@ -13,8 +13,10 @@ def tokenize(q: str) -> list[str]:
     return [t for t in re.split(r"[^0-9a-zA-Z\u4e00-\u9fff]+", q.lower()) if t]
 
 
-def score_papers(conn, tokens: list[str]) -> list[dict]:
-    """对全库论文打分，返回按相关度从高到低排序的结果（仅含命中的论文）。
+def score_papers(conn, tokens: list[str], include_zero: bool = False) -> list[dict]:
+    """对全库论文打分，返回按相关度从高到低排序的结果。
+
+    默认仅返回命中的论文；include_zero=True 时返回全库（未命中论文 score=0 排最后）。
 
     返回项: paper_id / title / score / hit_chunks / total_chunks / hits
     """
@@ -32,6 +34,7 @@ def score_papers(conn, tokens: list[str]) -> list[dict]:
         papers[pid]["chunks"].append(r["content"])
 
     results = []
+    zero_papers = []  # 未命中论文（include_zero=True 时追加到末尾）
     for pid, p in papers.items():
         hits = 0
         hit_chunks = 0
@@ -40,19 +43,24 @@ def score_papers(conn, tokens: list[str]) -> list[dict]:
             if cnt:
                 hit_chunks += 1
                 hits += cnt
-        if hits == 0:
-            continue
         total = len(p["chunks"])
-        coverage = hit_chunks / total if total else 0.0
-        results.append({
+        item = {
             "paper_id": pid,
             "title": p["title"],
-            "score": round(hits * (1 + coverage), 2),
+            "score": 0.0,
             "hits": hits,
             "hit_chunks": hit_chunks,
             "total_chunks": total,
-        })
+        }
+        if hits == 0:
+            zero_papers.append(item)
+            continue
+        coverage = hit_chunks / total if total else 0.0
+        item["score"] = round(hits * (1 + coverage), 2)
+        results.append(item)
     results.sort(key=lambda x: x["score"], reverse=True)
+    if include_zero:
+        results.extend(zero_papers)
     return results
 
 

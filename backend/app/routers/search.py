@@ -74,13 +74,16 @@ def search(q: str = Query(..., min_length=1)):
 
 
 @router.get("/rank")
-def rank_papers(topic: str = Query(..., min_length=1)):
-    """按主题给文献库全库排序：输入主题词，返回相关度从高到低的论文列表。"""
+def rank_papers(topic: str = Query(..., min_length=1), include_zero: bool = Query(False)):
+    """按主题给文献库全库排序：输入主题词，返回相关度从高到低的论文列表。
+
+    include_zero=true 时返回全库（未命中论文相关度 0 排最后），用于"全局视野"模式。
+    """
     conn = get_conn()
     tokens = _tokenize(topic)
     if not tokens:
         conn.close()
         raise HTTPException(400, "主题词无效")
-    results = relevance.score_papers(conn, tokens)
+    results = relevance.score_papers(conn, tokens, include_zero=include_zero)
     conn.close()
     return results
