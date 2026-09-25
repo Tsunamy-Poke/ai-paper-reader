@@ -108,6 +108,91 @@ def ask(paper_id: int, body: dict = Body(...)):
     return {"question": question, "answer": answer}
 
 
+@router.get("/questions")
+def list_questions(paper_id: int):
+    """返回该论文的历史追问记录（退出重进后接着聊）。"""
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT question, answer, created_at FROM questions WHERE paper_id = ? ORDER BY id",
+        (paper_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+_CITATION_SYSTEM = (
+    "你是学术引用助手。根据论文开头内容（通常含作者、机构、年份、期刊/会议信息），"
+    "提取元数据并生成三种引用格式。严格按 JSON 输出，键为：\n"
+    '"gbt771": GB/T 7714 格式（期刊[J]/会议[C]，作者间用逗号，3 名以上列前 3 名后加"等"）；\n'
+    '"bibtex": 标准 @inproceedings 或 @article，citekey 用第一作者姓+年份；\n'
+    '"apa": APA 第 7 版格式。\n'
+    "信息不全时按合理推测生成，不要留空。只输出 JSON，不要输出其他内容。"
+)
+
+
+@router.get("/citations")
+def get_citations(paper_id: int):
+    """一键生成三种引用格式（GB/T 7714 / BibTeX / APA），结果缓存到 highlights，只花一次 AI 调用。"""
+    conn = get_conn()
+    cached = conn.execute(
+        "SELECT content FROM highlights WHERE paper_id = ? AND type = 'citation'", (paper_id,)
+    ).fetchone()
+    if cached:
+        conn.close()
+        return json.loads(cached["content"])
+
+    paper = conn.execute("SELECT title FROM papers WHERE id = ?", (paper_id,)).fetchone()
+    if not paper:
+        conn.close()
+        raise HTTPException(404, "论文不存在")
+    rows = conn.execute(
+        "SELECT content, page FROM chunks WHERE paper_id = ? ORDER BY chunk_index LIMIT 3", (paper_id,)
+    ).fetchall()
+    context = "\n\n".join(f"[第{r['page']}页]\n{r['content']}" for r in rows)
+    reply = llm.chat([
+        {"role": "system", "content": _CITATION_SYSTEM},
+        {"role": "user", "content": f"论文标题：{paper['title']}\n开头内容：\n{context}"},
+    ])
+    citations = _parse_citations(reply, paper["title"])
+    conn.execute(
+        "INSERT INTO highlights (paper_id, type, content) VALUES (?, 'citation', ?)",
+        (paper_id, json.dumps(citations, ensure_ascii=False)),
+    )
+    conn.commit()
+    conn.close()
+    return citations
+
+
+def _parse_citations(reply: str, title: str) -> dict:
+    """容错解析 AI 返回的 JSON；失败时用标题兜底。"""
+    text = reply.strip()
+    if "```" in text:
+        for part in text.split("```"):
+            part = part.strip()
+            if part.startswith("json"):
+                part = part[4:].strip()
+            if part.startswith("{") and part.endswith("}"):
+                text = part
+                break
+    if not text.startswith("{"):
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end > start:
+            text = text[start:end + 1]
+    try:
+        data = json.loads(text)
+        return {
+            "gbt771": data.get("gbt771") or "",
+            "bibtex": data.get("bibtex") or "",
+            "apa": data.get("apa") or "",
+        }
+    except json.JSONDecodeError:
+        return {
+            "gbt771": f"{title}. （作者/年份信息待人工补充）",
+            "bibtex": f"@article{{unknown,\n  title={{{title}}}\n}}",
+            "apa": f"{title}.",
+        }
+
+
 @router.get("/export")
 def export_paper(paper_id: int, format: str = "html"):
     """导出阅读卡：format=html（默认，浏览器打开可打印）| format=pdf（直接下载 PDF 文件）。"""

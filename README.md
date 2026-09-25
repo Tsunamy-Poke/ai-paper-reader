@@ -20,6 +20,7 @@
 - ✅ **W3（完成）**：跨篇搜索（按相关度排序）+ 阅读卡导出（HTML/PDF）
 - ✅ **W4（完成）**：已发布至 GitHub（Public 仓库）
 - ✅ **v0.3（完成）**：Word/TXT 上传 + 相关度排序（搜索/排序合一搜索框，三种方式可选）
+- ✅ **v0.4（完成）**：追问历史持久化 + 一键生成引用（GB/T 7714 / BibTeX / APA，缓存复用）
 
 ## 快速开始
 
@@ -59,6 +60,8 @@ LLM_MODEL=deepseek-chat
 | GET | /papers/{id} | 论文详情 |
 | GET | /papers/{id}/reading-card | 生成阅读卡 |
 | POST | /papers/{id}/ask | 基于原文追问 |
+| GET | /papers/{id}/questions | 历史追问记录（退出重进接着聊） |
+| GET | /papers/{id}/citations | 一键生成三种引用格式（GB/T 7714 / BibTeX / APA，缓存复用） |
 | DELETE | /papers/{id} | 删除论文 |
 | GET | /search?q= | 跨篇全文检索（按相关度排序，含分数） |
 | GET | /search/rank?topic=&include_zero= | 按主题给全库相关度排序；include_zero=1 含未命中论文（v0.3） |
